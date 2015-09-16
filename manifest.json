@@ -1,0 +1,15 @@
+{
+  "manifest_version": 2,
+  "name": "Password Manager",
+  "description": "It is a password manager",
+  "version": "0.0.1",
+  "role": "addon",
+
+  "content_scripts": [{
+    "matches": "<all_urls>",
+    "js": ["js/ContentManager.js"]
+  },{
+    "matches": ["app://system.gaiamobile.org/index.html"],
+    "js": ["js/PasswordManager.js"]
+  }]
+}

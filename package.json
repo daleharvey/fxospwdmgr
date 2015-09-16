@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "package": "zip package.zip manifest.json -r js",
+    "start": "nodemon --verbose --watch . -e js --exec npm run package"
+  },
+  "devDependencies": {
+    "nodemon": "^1.4.1"
+  }
+}
