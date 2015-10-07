@@ -5,11 +5,23 @@
   "version": "0.0.1",
   "role": "addon",
 
+  "permissions": [
+    "storage"
+  ],
+
+  "applications": {
+    "gecko": {
+      "id": "fxospwd@mozilla.org"
+    }
+  },
+
+  "background": {
+    "persistent": true,
+    "scripts": ["js/PasswordManager.js"]
+  },
+
   "content_scripts": [{
-    "matches": "<all_urls>",
+    "matches": ["<all_urls>"],
     "js": ["js/ContentManager.js"]
-  },{
-    "matches": ["app://system.gaiamobile.org/index.html"],
-    "js": ["js/PasswordManager.js"]
   }]
 }

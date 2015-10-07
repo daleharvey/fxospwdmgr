@@ -22,24 +22,31 @@
   }
 
   function ContentManager() {
-    log('Starting content manager');
+    log('Starting content manager 2');
 
     // Listens to form submissions and catches the details that
     // are submitted
     window.addEventListener('submit', wrap(this.onFormSubmit.bind(this)));
+    this.init();
+  }
 
-    // This is triggered by the system app once a page is loaded and
-    // login details are found for that page
-    window.addEventListener('loginFound', wrap(this.loginFound.bind(this)));
+  ContentManager.prototype.init = function () {
+    this.send({
+      type: 'pageloaded',
+      url: document.location.href
+    }).then(function (details) {
+      log('Received login details', details);
+      if (details) {
+        this.loginFound(details);
+      }
+    }.bind(this));
   }
 
 
   // We have received login details for the currently loaded page
   // Fill in the form with those details
-  ContentManager.prototype.loginFound = function(e) {
+  ContentManager.prototype.loginFound = function(data) {
     log('Received new login');
-
-    var data = JSON.parse(e.detail);
 
     // Currently just pick the first form on the page, will
     // want to relate it to the form the details were submitted with
@@ -68,7 +75,7 @@
     }
 
     this.send({
-      type: 'submit',
+      type: 'passwordsubmitted',
       url: document.location.href,
       hostname: document.location.host,
       username: fields.username.value,
@@ -76,16 +83,13 @@
     });
   };
 
-  // TODO: GET RID OF THIS WITH FIRE
-  // We send messages to the system app currently by putting the json
-  // in a <meta name="theme-color" tag and listening for the
-  // metachanged event in the system app
-  ContentManager.prototype.send = function(json) {
+  ContentManager.prototype.send = function (json) {
     log('sending', JSON.stringify(json));
-    var meta = document.createElement('meta');
-    meta.setAttribute('name', 'theme-color'); // lol
-    meta.setAttribute('content', JSON.stringify(json));
-    document.getElementsByTagName('head')[0].appendChild(meta);
+    return new Promise(function (resolve) {
+      chrome.runtime.sendMessage(json, function (response) {
+        resolve(response);
+      });
+    });
   };
 
   ContentManager.prototype.getFormFields = function(form, isSubmission) {
@@ -222,18 +226,20 @@
     return;
   }
 
+  function start() {
+    if (document.documentElement.dataset.pwdMgrStarted) {
+      log('Password manager has already started, bailing');
+      return;
+    }
+    document.documentElement.dataset.pwdMgrStarted = true;
+    contentManager = new ContentManager();
+  }
+
   // Is document already loaded?
   if (document.documentElement) {
-    contentManager = new ContentManager();
+    start();
   } else {
-    window.addEventListener('DOMContentLoaded', function() {
-      if (document.documentElement.dataset.pwdMgrStarted) {
-        log('Password manager has already started, bailing');
-        return;
-      }
-      document.documentElement.dataset.pwdMgrStarted = true;
-      contentManager = new ContentManager();
-    });
+    window.addEventListener('DOMContentLoaded', start);
   }
 
 })();

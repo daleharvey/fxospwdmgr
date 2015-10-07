@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "package": "zip package.zip manifest.json -r js",
+    "package": "zip -r ./package.xpi ./js manifest.json",
     "start": "nodemon --verbose --watch . -e js --exec npm run package"
   },
   "devDependencies": {

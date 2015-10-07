@@ -11,62 +11,55 @@
   }
 
   function PasswordManager() {
-    log('Starting real passwordManager');
-    this.currentApp = null;
-    window.addEventListener('appopened', this);
+    log('Starting PasswordManager');
+    chrome.runtime.onMessage.addListener(this.handleMsg.bind(this));
   }
 
-  PasswordManager.prototype.handleEvent = function (evt) {
-    log('Handling event: ' + evt.type);
-    switch (evt.type) {
+  PasswordManager.prototype.handleMsg = function (request, sender, respond) {
+    log('Handling event: ', request.type);
+    log('data: ', JSON.stringify(request));
+    switch (request.type) {
 
-    case 'appopened':
-      if (this.currentApp && this.currentApp.element) {
-        this.currentApp.element.removeEventListener('mozbrowsermetachange', this);
-        this.currentApp.element.removeEventListener('mozbrowserloadend', this);
-      }
-      this.currentApp = evt.detail;
-      this.currentApp.element.addEventListener('mozbrowsermetachange', this);
-      this.currentApp.element.addEventListener('mozbrowserloadend', this);
+    case 'pageloaded':
+      this.pageLoaded(request, sender, respond);
       break;
 
-    case 'mozbrowserloadend':
-      this.pageLoaded();
-      break;
-
-    case 'mozbrowsermetachange':
-      try {
-        var content = JSON.parse(evt.detail.content);
-        if (content && content.type && content.type === 'submit') {
-          this.newPassword(content);
-        }
-      } catch (e) { }
+    case 'passwordsubmitted':
+      this.newPassword(request);
       break;
     };
   };
 
-  PasswordManager.prototype.pageLoaded = function () {
+  PasswordManager.prototype.pageLoaded = function (request, sender, respond) {
 
-    var url = this.currentApp.config.url;
-    var data = localStorage.getItem(url);
-
-    if (data) {
-
-      log('Sending password data', data, 'to', url);
-
-      // Sending the JSON as a string because ¯\_(ツ)_/¯
-      // (sending actual json didnt seem to work)
-      var script = 'window.dispatchEvent(new CustomEvent("loginFound", ' +
-        '{"detail": \'' + data + '\'}));';
-      this.currentApp.browser.element.executeScript(script, {url: url});
+    // Would like to be using chrome.storage, however it seems if you
+    // do not respond() synchronously, the content will never receive
+    // it
+    if (request.url in localStorage) {
+      var data = JSON.parse(localStorage[request.url]);
+      log('Sending password data', data, 'to', request.url);
+      respond(data);
     }
+
+    // chrome.storage.local.get(request.url, function(result) {
+    //   var data = request.url in result ? result[request.url] : false;
+    //   if (data) {
+    //     log('Sending password data', data, 'to', request.url);
+    //     respond(data);
+    //   } else {
+    //     log('No details found');
+    //     respond(false);
+    //   }
+    // });
   }
 
   PasswordManager.prototype.newPassword = function (detail) {
     log('Got a new password');
-    var isUpdate = detail.url in localStorage;
-    var text = isUpdate ? 'update-password' : 'save-password';
 
+    // This is where we should show some UI about whether to
+    // store / update
+    // var isUpdate = detail.url in localStorage;
+    // var text = isUpdate ? 'update-password' : 'save-password';
     // window.ModalDialog.showWithPseudoEvent({
     //   type: 'confirm',
     //   callback: function() {
@@ -74,24 +67,20 @@
     //   }
     // });
 
-    // The above should be confirming whether the user wants to
-    // save / update the password, not currently working
+    // See above about why localstorage
     localStorage[detail.url] = JSON.stringify(detail);
+    // var toSave = {};
+    // toSave[detail.url] = detail;
+    // chrome.storage.local.set(toSave, function() {
+    //   log('Saved new password');
+    // });
   };
 
-  // Is document already loaded?
-  if (document.documentElement) {
-    passwordManager = new PasswordManager();
-  } else {
-    window.addEventListener('DOMContentLoaded', function() {
-      if (document.documentElement.dataset.pwdMgrStarted) {
-        log('Password manager has already started, bailing');
-        return;
-      }
-      document.documentElement.dataset.pwdMgrStarted = true;
-      passwordManager = new PasswordManager();
-    });
+  if (document.documentElement.dataset.pwdMgrStarted) {
+    log('Password manager has already started, bailing');
+    return;
   }
-
+  document.documentElement.dataset.pwdMgrStarted = true;
+  passwordManager = new PasswordManager();
 
 })();
